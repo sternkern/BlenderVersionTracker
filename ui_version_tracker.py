@@ -1,5 +1,6 @@
 import bpy
 import os
+from shutil import copyfile
 from bpy.app.handlers import persistent
 
 # Meta information.
@@ -7,7 +8,7 @@ bl_info = {
     "name": "Version Tracker",
     "description": "This script manages the multiple versions of a file.",
     "author": "Attila Dobos",
-    "version": (0, 1, 3),
+    "version": (0, 2, 1),
     "blender": (2, 79, 0),
     "location": "View3D > Toolshelf",
     "warning": "",
@@ -23,9 +24,23 @@ def file_open_handler(scene):
 
 @persistent    
 def file_save_handler(scene):
-    print("File saved.")
+    head_marker = os.path.dirname(bpy.data.filepath) + "\\" + get_base_filename() + ".head"
+    print(head_marker)
+    if (os.path.exists(head_marker)):
+        head_file_handle = open (head_marker,"r")
+        head_file_name = head_file_handle.read()
+        head_file_handle.close()
+        copyfile(os.path.dirname(bpy.data.filepath) + "\\" + head_file_name,head_marker + ".blend")
+        print("File is head, saving to head, too.")
 
 # Helper functions
+
+def save_head():
+    directory = os.path.dirname(bpy.data.filepath)
+    file_to_save = bpy.data.filepath
+    head_to_save = directory + "\\" + get_base_filename() + ".head.blend"
+    bpy.ops.wm.save_mainfile(filepath=head_to_save)
+    bpy.ops.wm.save_mainfile(filepath=file_to_save)
 
 def get_base_filename():
     currentfilename = bpy.path.basename(bpy.context.blend_data.filepath).lower()
@@ -60,7 +75,7 @@ def enum_all_version_items(self, context):
     currentfilepath = bpy.data.filepath
     currentversion = get_file_version()
     currentbasename = get_base_filename()
-    print("Current base filename is %s (version is %s)" % (currentbasename, currentversion))
+#    print("Current base filename is %s (version is %s)" % (currentbasename, currentversion))
     directory = os.path.dirname(currentfilepath)
 
     if (currentfilepath == ""):
@@ -77,9 +92,8 @@ def enum_all_version_items(self, context):
                 name=os.path.splitext(fn)[0].lower()
                 version=os.path.splitext(name)[1][1:].lower()
                 if not (version == "") and not (version == "head"):
-                    print("Found version %s" % version)
+#                    print("Found version %s" % version)
                     enum_items.append((version,version,""))
-
     return enum_items
 
 class OBJECT_PT_CreateNewVersionButton(bpy.types.Operator):
@@ -106,13 +120,16 @@ class OBJECT_PT_MarkItAsHeadButton(bpy.types.Operator):
     bl_region_type = "UI"
     
     def execute(self, context):
-        directory = os.path.dirname(bpy.data.filepath)
-        file_to_save = bpy.data.filepath
-        head_to_save = directory + "\\" + get_base_filename() + ".head.blend"
-        bpy.ops.wm.save_mainfile(filepath=head_to_save)
-        bpy.ops.wm.save_mainfile(filepath=file_to_save)
+        head_marker = os.path.dirname(bpy.data.filepath) + "\\" + get_base_filename() + ".head"
+        head_file_name = get_base_filename() + "." + get_file_version() + ".blend"
+        if (os.path.exists(head_marker)):
+            os.remove(head_marker)
+        head_file_handle = open(head_marker,"w")
+        print(head_marker)
+        head_file_handle.write(head_file_name)
+        head_file_handle.close()
+        print("Head marked as %s." % head_file_name)
         return{"FINISHED"}
-    
 
 # Class for the version tracker panel
 class OBJECT_PT_VersionTrackerPanel(bpy.types.Panel):
